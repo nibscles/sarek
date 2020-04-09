@@ -2250,7 +2250,7 @@ process Mutect2Single {
     """
 }
 
-mutect20Output = mutect20Output.mix(mutect2OutputSingle)
+mutect2Output = mutect2Output.mix(mutect2OutputSingle)
 mutect2Stats = mutect2Stats.mix(mutect2StatsSingle)
 
 mutect2Output = mutect2Output.groupTuple(by:[0,1,2])
