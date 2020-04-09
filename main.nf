@@ -1274,7 +1274,7 @@ process MarkDuplicates {
         --ASSUME_SORT_ORDER coordinate \
         --CREATE_INDEX true \
         --OUTPUT ${idSample}.md.bam
-    
+
     mv ${idSample}.md.bai ${idSample}.md.bam.bai
     """
     else
@@ -1762,8 +1762,13 @@ bamRecal = bamRecal.dump(tag:'BAM for Variant Calling')
 // The TSV file is formatted like: "idPatient status idSample bamFile baiFile"
 // Manta will be run in Germline mode, or in Tumor mode depending on status
 // HaplotypeCaller, TIDDIT and Strelka will be run for Normal and Tumor samples
+if (params.mutect_single){
+  (bamSentieonDNAscope, bamSentieonDNAseq, bamMantaSingle, bamStrelkaSingle, bamTIDDIT, bamRecalAll, bamRecalAllTemp, bamRecalMutectSingle) = bamRecal.into(8)
+}
+else {
+  (bamSentieonDNAscope, bamSentieonDNAseq, bamMantaSingle, bamStrelkaSingle, bamTIDDIT, bamRecalAll, bamRecalAllTemp) = bamRecal.into(7)
+}
 
-(bamSentieonDNAscope, bamSentieonDNAseq, bamMantaSingle, bamStrelkaSingle, bamTIDDIT, bamRecalAll, bamRecalAllTemp) = bamRecal.into(7)
 
 // To speed Variant Callers up we are chopping the reference into smaller pieces
 // Do variant calling by this intervals, and re-merge the VCFs
@@ -2172,7 +2177,7 @@ process Mutect2 {
         set idPatient, idSampleNormal, idSampleTumor, file("${intervalBed.baseName}_${idSampleTumor}_vs_${idSampleNormal}.vcf.stats") optional true into intervalStatsFiles
         set idPatient, val("${idSampleTumor}_vs_${idSampleNormal}"), file("${intervalBed.baseName}_${idSampleTumor}_vs_${idSampleNormal}.vcf.stats"), file("${intervalBed.baseName}_${idSampleTumor}_vs_${idSampleNormal}.vcf") optional true into mutect2Stats
 
-    when: 'mutect2' in tools
+    when: 'mutect2' in tools && !params.mutect_single
 
     script:
     // please make a panel-of-normals, using at least 40 samples
@@ -2192,6 +2197,53 @@ process Mutect2 {
       -O ${intervalBed.baseName}_${idSampleTumor}_vs_${idSampleNormal}.vcf
     """
 }
+
+// ##########################################################################################################
+// Calling Somatic Variants with Mutect2 when tumour-normal pairs are not present.
+// Modifying previous process to make sure it is integrated in the very same flow of channels downstream
+// ######## MUTECT SINGLE STARTS HERE #####################################################################
+
+
+process Mutect2Single {
+    tag {idSampleTumor + "_vs_" + idSampleNormal + "-" + intervalBed.baseName}
+    label 'cpus_1'
+
+    input:
+        set idPatient, idSample, file(bam), file(bai) from bamRecalMutectSingle
+        file(dict) from ch_dict
+        file(fasta) from ch_fasta
+        file(fastaFai) from ch_fai
+        file(germlineResource) from ch_germline_resource
+        file(germlineResourceIndex) from ch_germline_resource_tbi
+        file(intervals) from ch_intervals
+        file(pon) from ch_pon
+        file(ponIndex) from ch_pon_tbi
+
+    output:
+        set val("Mutect2"), idPatient, idSample, file("${intervalBed.baseName}_${idSample}.vcf") into mutect2Output
+        set idPatient, idSample, idSample, file("${intervalBed.baseName}_${idSample}.vcf.stats") optional true into intervalStatsFiles
+        set idPatient, idSample, file("${intervalBed.baseName}_${idSample}.vcf.stats"), file("${intervalBed.baseName}_${idSample}.vcf") optional true into mutect2Stats
+
+    when: 'mutect2' in tools && params.mutect_single
+
+    script:
+    // please make a panel-of-normals, using at least 40 samples
+    // https://gatkforums.broadinstitute.org/gatk/discussion/11136/how-to-call-somatic-mutations-using-gatk4-mutect2
+    PON = params.pon ? "--panel-of-normals ${pon}" : ""
+    intervalsOptions = params.no_intervals ? "" : "-L ${intervalBed}"
+    """
+    # Get raw calls
+    gatk --java-options "-Xmx${task.memory.toGiga()}g" \
+      Mutect2 \
+      -R ${fasta}\
+      -I ${bam} \
+      ${intervalsOptions} \
+      --germline-resource ${germlineResource} \
+      ${PON} \
+      -O ${intervalBed.baseName}_${idSample}.vcf
+    """
+}
+
 
 mutect2Output = mutect2Output.groupTuple(by:[0,1,2])
 mutect2Stats = mutect2Stats.groupTuple(by:[0,1])
@@ -2217,7 +2269,7 @@ process MergeMutect2Stats {
 
     when: 'mutect2' in tools
 
-    script:   
+    script:
                stats = statsFiles.collect{ "-stats ${it} " }.join(' ')
     """
     gatk --java-options "-Xmx${task.memory.toGiga()}g" \
@@ -2350,13 +2402,13 @@ process CalculateContamination {
 
     input:
         set idPatient, idSampleNormal, idSampleTumor, file(bamNormal), file(baiNormal), file(bamTumor), file(baiTumor), file(mergedPileup) from pairBamCalculateContamination
- 
+
      output:
         set idPatient, val("${idSampleTumor}_vs_${idSampleNormal}"), file("${idSampleTumor}_contamination.table") into contaminationTable
 
     when: 'mutect2' in tools
 
-    script:   
+    script:
              """
     # calculate contamination
     gatk --java-options "-Xmx${task.memory.toGiga()}g" \
@@ -2388,7 +2440,7 @@ process FilterMutect2Calls {
         file(germlineResource) from ch_germline_resource
         file(germlineResourceIndex) from ch_germline_resource_tbi
         file(intervals) from ch_intervals
-      
+
                   output:
         set val("Mutect2"), idPatient, idSamplePair, file("Mutect2_filtered_${idSamplePair}.vcf.gz"), file("Mutect2_filtered_${idSamplePair}.vcf.gz.tbi"), file("Mutect2_filtered_${idSamplePair}.vcf.gz.filteringStats.tsv") into filteredMutect2Output
 
