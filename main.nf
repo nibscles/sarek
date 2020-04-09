@@ -2256,6 +2256,7 @@ mutect2Stats = mutect2Stats.mix(mutect2StatsSingle)
 mutect2Output = mutect2Output.groupTuple(by:[0,1,2])
 mutect2Stats = mutect2Stats.groupTuple(by:[0,1])
 mutect2OrientationModel = mutect2OrientationModel.groupTuple(by:[0,1])
+mutect2OrientationModel = mutect2OrientationModel.dump(tag:'Mutect Orientation Model')
 
 
 process Mutect2LearnOrientationModel {
