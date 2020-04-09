@@ -2313,6 +2313,8 @@ process MergeMutect2Stats {
     """
 }
 
+(mergedStatsFile, mergedStatsFileSingle) = mergedStatsFile.into(2)
+
 // we are merging the VCFs that are called separatelly for different intervals
 // so we can have a single sorted VCF containing all the calls for a given caller
 
@@ -2604,7 +2606,7 @@ process CalculateContaminationSingle {
 mutect2CallsSingleToFilter = vcfConcatenatedForFilterSingle.map{
     variantCaller, idPatient, idSample, vcf, tbi ->
     [idPatient, idSample, vcf, tbi]
-}.join(mergedStatsFile, by:[0,1]).join(contaminationTableSingle, by:[0,1]).join(mutect2SampleOrientationModel, by:[0,1])
+}.join(mergedStatsFileSingle, by:[0,1]).join(contaminationTableSingle, by:[0,1]).join(mutect2SampleOrientationModel, by:[0,1])
 
 process FilterMutect2CallsSingle {
     label 'cpus_1'
