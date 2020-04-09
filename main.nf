@@ -2224,9 +2224,9 @@ process Mutect2Single {
         file(ponIndex) from ch_pon_tbi
 
     output:
-        set val("Mutect2"), idPatient, idSample, file("${intervalBed.baseName}_${idSample}.vcf") into mutect2Output
+        set val("Mutect2"), idPatient, idSample, file("${intervalBed.baseName}_${idSample}.vcf") into mutect2OutputSingle
         set idPatient, idSample, file("${intervalBed.baseName}_${idSample}.vcf.stats") optional true into intervalStatsFilesSingle
-        set idPatient, idSample, file("${intervalBed.baseName}_${idSample}.vcf.stats"), file("${intervalBed.baseName}_${idSample}.vcf") optional true into mutect2Stats
+        set idPatient, idSample, file("${intervalBed.baseName}_${idSample}.vcf.stats"), file("${intervalBed.baseName}_${idSample}.vcf") optional true into mutect2StatsSingle
         set idPatient, idSample, file("${intervalBed.baseName}_${idSample}_f1r2.tar.gz") into mutect2OrientationModel
 
     when: 'mutect2' in tools && params.mutect_single
@@ -2250,6 +2250,8 @@ process Mutect2Single {
     """
 }
 
+mutect20Output = mutect20Output.mix(mutect2OutputSingle)
+mutect2Stats = mutect2Stats.mix(mutect2StatsSingle)
 
 mutect2Output = mutect2Output.groupTuple(by:[0,1,2])
 mutect2Stats = mutect2Stats.groupTuple(by:[0,1])
