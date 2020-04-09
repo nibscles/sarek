@@ -2625,7 +2625,7 @@ process FilterMutect2CallsSingle {
         file(intervals) from ch_intervals
 
       output:
-        set val("Mutect2"), idPatient, idSample, file("Mutect2_filtered_${idSample}.vcf.gz"), file("Mutect2_filtered_${idSample}.vcf.gz.tbi"), file("Mutect2_filtered_${idSample}.vcf.gz.filteringStats.tsv") into filteredMutect2Output
+        set val("Mutect2"), idPatient, idSample, file("Mutect2_filtered_${idSample}.vcf.gz"), file("Mutect2_filtered_${idSample}.vcf.gz.tbi"), file("Mutect2_filtered_${idSample}.vcf.gz.filteringStats.tsv") into filteredMutect2OutputSingle
 
     when: 'mutect2' in tools && params.mutect_single
 
@@ -2642,7 +2642,6 @@ process FilterMutect2CallsSingle {
         -O Mutect2_filtered_${idSample}.vcf.gz
     """
 }
-
 
 
 
