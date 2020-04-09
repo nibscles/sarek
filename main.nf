@@ -2205,7 +2205,7 @@ process Mutect2 {
 
 
 process Mutect2Single {
-    tag {idSampleTumor + "_vs_" + idSampleNormal + "-" + intervalBed.baseName}
+    tag {idSample + "-" + intervalBed.baseName}
     label 'cpus_1'
 
     input:
@@ -2223,6 +2223,7 @@ process Mutect2Single {
         set val("Mutect2"), idPatient, idSample, file("${intervalBed.baseName}_${idSample}.vcf") into mutect2Output
         set idPatient, idSample, idSample, file("${intervalBed.baseName}_${idSample}.vcf.stats") optional true into intervalStatsFiles
         set idPatient, idSample, file("${intervalBed.baseName}_${idSample}.vcf.stats"), file("${intervalBed.baseName}_${idSample}.vcf") optional true into mutect2Stats
+        set idPatient, idSample, file("${intervalBed.baseName}_${idSample}_f1r2.tar.gz") into mutect2OrientationModel
 
     when: 'mutect2' in tools && params.mutect_single
 
@@ -2240,6 +2241,7 @@ process Mutect2Single {
       ${intervalsOptions} \
       --germline-resource ${germlineResource} \
       ${PON} \
+      --f1r2-tar-gz ${intervalBed.baseName}_${idSample}_f1r2.tar.gz \
       -O ${intervalBed.baseName}_${idSample}.vcf
     """
 }
@@ -2247,6 +2249,29 @@ process Mutect2Single {
 
 mutect2Output = mutect2Output.groupTuple(by:[0,1,2])
 mutect2Stats = mutect2Stats.groupTuple(by:[0,1])
+mutect2OrientationModel = mutect2OrientationModel.groupTuple(by:[0,1])
+
+process Mutect2LearnOrientationModel {
+    tag{idSample}
+
+    publishDir "${params.outdir}/VariantCalling/${idSample}/Mutect2", mode: params.publish_dir_mode
+
+    input:
+        set idPatient, idSample, file(orientationModel) from mutect2OrientationModel
+
+    output:
+        set idPatient, idSample, file("${idSample}_read-orientation-model.tar.gz") into mutect2SampleOrientationModel
+
+    script:
+
+    models = orientationModel.collect{ "-I ${it} " }.join{' '}
+
+    """
+    gatk LearnReadOrientationModel ${models} -O ${idSample}_read-orientation-model.tar.gz
+    """
+
+}
+
 
 // STEP GATK MUTECT2.2 - MERGING STATS
 
