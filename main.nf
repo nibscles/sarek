@@ -2353,7 +2353,7 @@ process ConcatVCF {
     """
 }
 
-(vcfConcatenated, vcfConcatenatedForFilter) = vcfConcatenated.into(2)
+(vcfConcatenated, vcfConcatenatedForFilter, vcfConcatenatedForFilterSingle) = vcfConcatenated.into(3)
 vcfConcatenated = vcfConcatenated.dump(tag:'VCF')
 
 // #############################################################################
@@ -2601,7 +2601,7 @@ process CalculateContaminationSingle {
 
 // STEP GATK MUTECT2.6 - FILTERING CALLS
 
-mutect2CallsSingleToFilter = vcfConcatenatedForFilter.map{
+mutect2CallsSingleToFilter = vcfConcatenatedForFilterSingle.map{
     variantCaller, idPatient, idSample, vcf, tbi ->
     [idPatient, idSample, vcf, tbi]
 }.join(mergedStatsFile, by:[0,1]).join(contaminationTableSingle, by:[0,1]).join(mutect2SampleOrientationModel, by:[0,1])
