@@ -2015,7 +2015,7 @@ else gvcfHaplotypeCaller = gvcfHaplotypeCaller.dump(tag:'GVCF HaplotypeCaller')
 
 if (params.joint_genotyping) {
   gvcfGenotypeGVCFs = gvcfGenotypeGVCFs.groupTuple(by:[2])
-  gvcfGenotypeGVCFs.dump(tag:'GVCF grouped by interval')
+  gvcfGenotypeGVCFs = gvcfGenotypeGVCFs.dump(tag:'GVCF grouped by interval')
 }
 
 // STEP GATK HAPLOTYPECALLER.2
